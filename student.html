@@ -41,7 +41,7 @@
         <button onclick="startEvaluation()">시작하기 🚀</button>
     </div>
 
-    <!-- 2단계: 영화 평가 및 제출 화면 (처음엔 숨김) -->
+    <!-- 2단계: 영화 평가 및 제출 화면 -->
     <div id="evaluationView" class="hidden">
         <div id="selectedClassBadge" class="class-badge"></div>
         <p class="desc">선생님이 지정하신 영화들의 재미 점수를 매겨보고, 나와 가장 잘 맞는 '영화 메이트'를 찾아보세요!</p>
@@ -61,8 +61,8 @@
 </div>
 
 <script>
-    // 전달해주신 최신 백엔드 웹 앱 주소
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwwQvoQxkVnsquaDvQMCngXkyAC0LxPSsqPsI0GUnXxHsw6g8Q6XSEOzb5mjmO7omwQag/exec";
+    // 새로 발급해주신 최신 백엔드 웹 앱 주소 반영 완료
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzOMEjTqsN-yxn22NZ3NNBQuUY73kQfnfJ8joaUtgPrgphXI6Io1m8ZTkn98z-TUvkaxg/exec";
     
     let currentMovies = [];
     let myClass = "";
@@ -71,11 +71,10 @@
         myClass = document.getElementById('selectClass').value;
         document.getElementById('selectedClassBadge').innerText = `📍 소속 학급: ${myClass}`;
         
-        // 화면 전환
         document.getElementById('classSelectView').classList.add('hidden');
         document.getElementById('evaluationView').classList.remove('hidden');
 
-        // 서버에서 최신 영화 목록(설정 시트 연동) 불러오기
+        // 서버에서 교사가 설정한 최신 영화 목록을 동적으로 불러옴
         try {
             const response = await fetch(`${SCRIPT_URL}?action=getMovies`);
             const movies = await response.json();
