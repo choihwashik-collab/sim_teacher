@@ -6,50 +6,80 @@
     <title>영화 취향 협업 필터링 실습 (교사용 대시보드)</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .container { max-width: 950px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         h1 { text-align: center; color: #1e293b; font-size: 26px; margin-bottom: 5px; }
         p.desc { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 25px; }
-        .control-panel { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 25px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
-        .control-group { flex: 1; min-width: 200px; }
+        
+        /* 섹션 박스 공통 스타일 */
+        .section-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .section-title { font-size: 16px; font-weight: bold; color: #334155; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        
         label { display: block; font-weight: bold; margin-bottom: 6px; color: #475569; font-size: 14px; }
         select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; background: white; }
-        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
-        button { flex: 1; padding: 12px; font-size: 15px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
-        .btn-primary { background-color: #2563eb; color: white; }
+        
+        /* 영화 태그 스타일 */
+        .movie-badge-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px; }
+        .movie-badge { background: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; border: 1px solid #bae6fd; }
+
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        button { padding: 12px 20px; font-size: 15px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
+        .btn-primary { background-color: #2563eb; color: white; flex: 1; }
         .btn-primary:hover { background-color: #1d4ed8; }
         .btn-danger { background-color: #ef4444; color: white; }
         .btn-danger:hover { background-color: #dc2626; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        .btn-secondary { background-color: #64748b; color: white; }
+        .btn-secondary:hover { background-color: #475569; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
         th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: center; }
         th { background-color: #f1f5f9; color: #334155; }
-        .results-box { margin-top: 30px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; }
+        
         .match-card { background: white; border: 1px solid #cbd5e1; padding: 12px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
         .no-data { text-align: center; color: #94a3b8; padding: 30px; font-style: italic; }
     </style>
 </head>
-<body>
+<body onload="initDashboard()">
 
 <div class="container">
     <h1>📊 교사 전용 분석 대시보드</h1>
-    <p class="desc">학급별 학생들의 영화 선호도 데이터를 확인하고 코사인 유사도 분석을 실행하세요.</p>
+    <p class="desc">현재 설정된 영화 목록을 확인하고, 학급별 학생 데이터 수집 및 코사인 유사도 분석을 관리합니다.</p>
 
-    <div class="control-panel">
-        <div class="control-group">
-            <label for="targetClass">조회할 학급 선택</label>
-            <select id="targetClass">
-                <option value="1반">1반</option>
-                <option value="2반">2반</option>
-                <option value="3반">3반</option>
-            </select>
+    <!-- 1. 영화 목록 확인 및 관리 섹션 (추가됨!) -->
+    <div class="section-box">
+        <div class="section-title">
+            <span>🎬 현재 출제된 영화 목록 (설정 시트 연동)</span>
+            <button class="btn-secondary" style="padding: 6px 12px; font-size: 13px;" onclick="loadCurrentMovies()">목록 새로고침 🔄</button>
         </div>
-        <div style="display: flex; gap: 10px; align-items: flex-end; width: 100%;">
-            <button class="btn-primary" onclick="loadClassData()">데이터 불러오기 🔄</button>
-            <button class="btn-danger" onclick="resetClassData()" style="flex: 0.5;">데이터 초기화 🗑️</button>
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 10px;">
+            * 영화 목록을 변경하시려면 구글 스프레드시트의 <b>[설정]</b> 시트에서 직접 수정해 주세요. 수정 즉시 학생들에게 반영됩니다.
+        </p>
+        <div id="movieBadgeContainer" class="movie-badge-container">
+            <span style="color: #94a3b8; font-size: 13px;">영화 목록을 불러오는 중...</span>
         </div>
     </div>
 
-    <div id="dataContainer">
-        <div class="no-data">학급을 선택하고 [데이터 불러오기] 버튼을 눌러주세요.</div>
+    <!-- 2. 학급 선택 및 제어 패널 -->
+    <div class="section-box">
+        <div class="section-title"><span>🎯 학급별 데이터 분석 및 관리</span></div>
+        <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 200px;">
+                <label for="targetClass">조회할 학급 선택</label>
+                <select id="targetClass">
+                    <option value="1반">1반</option>
+                    <option value="2반">2반</option>
+                    <option value="3반">3반</option>
+                </select>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-primary" onclick="loadClassData()">데이터 불러오기 🔄</button>
+                <button class="btn-danger" onclick="resetClassData()">테스트 데이터 초기화 🗑️</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 결과 및 데이터 대시보드 영역 -->
+    <div id="dataContainer" class="section-box" style="background: white;">
+        <div class="no-data">상단에서 조회할 학급을 선택하고 [데이터 불러오기] 버튼을 눌러주세요.</div>
     </div>
 </div>
 
@@ -59,14 +89,46 @@
     let currentMovies = [];
     let studentDataList = [];
 
-    // 1. 학급 데이터 불러오기
+    // 페이지 접속 시 영화 목록 자동 로드
+    async function initDashboard() {
+        await loadCurrentMovies();
+    }
+
+    // 영화 목록을 백엔드에서 가져와서 교사 화면에 뱃지 형태로 렌더링
+    async function loadCurrentMovies() {
+        const badgeContainer = document.getElementById('movieBadgeContainer');
+        badgeContainer.innerHTML = `<span style="color: #94a3b8; font-size: 13px;">영화 목록 동기화 중...</span>`;
+
+        try {
+            const response = await fetch(`${SCRIPT_URL}?action=getMovies`);
+            const movies = await response.json();
+            
+            if (Array.isArray(movies) && movies.length > 0) {
+                currentMovies = movies;
+                badgeContainer.innerHTML = '';
+                movies.forEach((movie, idx) => {
+                    const badge = document.createElement('span');
+                    badge.className = 'movie-badge';
+                    badge.innerText = `${idx + 1}. ${movie}`;
+                    badgeContainer.appendChild(badge);
+                });
+            } else {
+                badgeContainer.innerHTML = `<span style="color: #ef4444; font-size: 13px;">영화 목록이 비어있습니다.</span>`;
+            }
+        } catch (error) {
+            console.error("영화 목록 로드 에러:", error);
+            badgeContainer.innerHTML = `<span style="color: #ef4444; font-size: 13px;">영화 목록 통신 실패</span>`;
+        }
+    }
+
+    // 학급 데이터 불러오기
     async function loadClassData() {
         const targetClass = document.getElementById('targetClass').value;
         const container = document.getElementById('dataContainer');
         container.innerHTML = `<div class="no-data">[${targetClass}] 데이터를 불러오는 중입니다...</div>`;
 
         try {
-            // 영화 목록과 해당 반 데이터를 동시에 가져옴
+            // 최신 영화 목록과 해당 반 데이터를 동시에 가져옴
             const [movieRes, dataRes] = await Promise.all([
                 fetch(`${SCRIPT_URL}?action=getMovies`),
                 fetch(`${SCRIPT_URL}?action=getData&className=${targetClass}`)
@@ -82,7 +144,7 @@
         }
     }
 
-    // 2. 대시보드 화면 렌더링 및 코사인 유사도 계산
+    // 대시보드 화면 렌더링 및 코사인 유사도 계산
     function renderDashboard(className) {
         const container = document.getElementById('dataContainer');
         
@@ -91,34 +153,38 @@
             return;
         }
 
-        let html = `<h3>📌 [${className}] 제출 현황 (총 ${studentDataList.length}명 참여)</h3>`;
+        let html = `<h3 style="margin-top: 0; color: #1e293b;">📌 [${className}] 제출 현황 (총 ${studentDataList.length}명 참여)</h3>`;
         
         // 제출된 데이터 테이블 생성
-        html += `<div style="overflow-x: auto; max-height: 300px;"><table><thead><tr><th>반</th><th>이름</th><th>제출시간</th>`;
+        html += `<div style="overflow-x: auto; max-height: 300px; margin-bottom: 20px;"><table><thead><tr><th>반</th><th>이름</th><th>제출시간</th>`;
         currentMovies.forEach(m => { html += `<th>${m}</th>`; });
         html += `</tr></thead><tbody>`;
 
         studentDataList.forEach(row => {
             html += `<tr>`;
-            row.forEach((cell, idx) => {
+            row.forEach(cell => {
                 html += `<td>${cell}</td>`;
             });
             html += `</tr>`;
         });
         html += `</tbody></table></div>`;
 
-        // 코사인 유사도 기반 '나의 영화 메이트' 찾기 분석 영역
-        html += `<div class="results-box">
-                    <h3>🤝 알고리즘 분석: 코사인 유사도 기반 '찰떡궁합 영화 메이트'</h3>
+        // 코사인 유사도 기반 알고리즘 분석 영역
+        html += `<div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px;">
+                    <h3 style="margin-top: 0; color: #1e293b;">🤝 알고리즘 분석: 코사인 유사도 기반 '찰떡궁합 영화 메이트'</h3>
                     <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">학생 간 벡터 값을 비교하여 가장 유사한 취향을 가진 커플을 매칭합니다.</p>`;
 
         const matches = calculateCosineSimilarities();
-        matches.forEach(match => {
-            html += `<div class="match-card">
-                        <span>👤 <b>${match.studentA}</b> &amp; 👤 <b>${match.studentB}</b></span>
-                        <span style="color: #2563eb; font-weight: bold;">유사도 점수: ${(match.similarity * 100).toFixed(1)}점</span>
-                     </div>`;
-        });
+        if (matches.length === 0) {
+            html += `<div style="color: #64748b; font-size: 14px;">유사도를 계산하기에 데이터가 부족합니다. (2명 이상 필요)</div>`;
+        } else {
+            matches.forEach(match => {
+                html += `<div class="match-card">
+                            <span>👤 <b>${match.studentA}</b> &amp; 👤 <b>${match.studentB}</b></span>
+                            <span style="color: #2563eb; font-weight: bold;">유사도 점수: ${(match.similarity * 100).toFixed(1)}점</span>
+                         </div>`;
+            });
+        }
 
         html += `</div>`;
         container.innerHTML = html;
@@ -128,7 +194,6 @@
     function calculateCosineSimilarities() {
         if (studentDataList.length < 2) return [];
 
-        // 학생별 벡터 추출 (인덱스 3부터 점수 시작)
         const vectors = studentDataList.map(row => {
             return {
                 name: row[1],
@@ -149,7 +214,6 @@
             }
         }
 
-        // 유사도가 높은 순으로 정렬 상위 5개 추출
         pairs.sort((a, b) => b.similarity - a.similarity);
         return pairs.slice(0, 5);
     }
@@ -167,7 +231,7 @@
         return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
     }
 
-    // 3. 테스트 데이터 초기화 함수
+    // 테스트 데이터 초기화 함수
     async function resetClassData() {
         const targetClass = document.getElementById('targetClass').value;
         if (!confirm(`⚠️ 경고: [${targetClass}]의 모든 제출 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
@@ -188,7 +252,7 @@
 
             if (result.result === 'success') {
                 alert(`✅ [${targetClass}] 데이터가 성공적으로 초기화되었습니다.`);
-                loadClassData(); // 화면 새로고침
+                loadClassData();
             } else {
                 alert("❌ 초기화 실패");
             }
