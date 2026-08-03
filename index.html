@@ -6,7 +6,7 @@
     <title>영화 취향 협업 필터링 실습 (교사용 대시보드)</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         h1 { text-align: center; color: #1e293b; font-size: 26px; margin-bottom: 5px; }
         p.desc { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 25px; }
         
@@ -28,15 +28,18 @@
         .btn-danger:hover { background-color: #dc2626; }
         .btn-secondary { background-color: #64748b; color: white; }
         .btn-secondary:hover { background-color: #475569; }
-        .btn-reveal { background-color: #8b5cf6; color: white; width: 100%; margin-top: 10px; }
-        .btn-reveal:hover { background-color: #7c3aed; }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
-        th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
+        th, td { border: 1px solid #e2e8f0; padding: 6px; text-align: center; }
         th { background-color: #f1f5f9; color: #334155; }
         .train-col { background-color: #f8fafc; }
         .test-col { background-color: #eff6ff; color: #1e40af; font-weight: bold; }
         
+        /* 매트릭스 테이블 전용 스타일 (최대 45명 대응 컴팩트 사이즈) */
+        .matrix-table { font-size: 11px; }
+        .matrix-table th, .matrix-table td { width: 35px; height: 30px; padding: 2px; text-align: center; overflow: hidden; text-overflow: ellipsis; }
+        .matrix-name-th { min-width: 70px; background-color: #f8fafc; font-weight: bold; }
+
         .match-card { background: white; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
         .match-header { display: flex; justify-content: space-between; align-items: center; font-size: 15px; margin-bottom: 10px; }
         .blind-box { background: #1e293b; color: #94a3b8; padding: 12px; border-radius: 6px; text-align: center; font-size: 14px; cursor: pointer; transition: background 0.2s; }
@@ -49,15 +52,12 @@
 <body onload="initDashboard()">
 
 <div class="container">
-    <h1>📊 교사 전용 분석 대시보드 (협업 필터링 검증)</h1>
-    <p class="desc">훈련용 데이터(앞 10개)로 메이트를 찾고, 테스트용 데이터(마지막 2개)로 예측 정확도를 비교합니다.</p>
+    <h1>📊 교사 전용 분석 대시보드 (협업 필터링 &amp; 매트릭스)</h1>
+    <p class="desc">학습용 데이터(1~10번)로 유사도를 계산하고, 최대 45명의 매트릭스 히트맵 및 테스트 영화 검증을 수행합니다.</p>
 
     <!-- 1. 영화 목록 관리 섹션 -->
     <div class="section-box">
-        <div class="section-title">🎬 출제할 영화 목록 관리 (앞부분: 훈련용 / 마지막 2개: 테스트용)</div>
-        <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">
-            * 총 영화 개수가 12개라면, <b>1~10번은 학습용(유사도 계산)</b>, <b>11~12번은 테스트용(블라인드 비교)</b>으로 자동 분리됩니다.
-        </p>
+        <div class="section-title">🎬 출제할 영화 목록 관리 (1~10번: 학습용 / 11번 이후: 테스트용)</div>
         <div id="movieEditContainer" class="movie-edit-list">
             <div style="color: #94a3b8; font-size: 13px;">영화 목록을 불러오는 중...</div>
         </div>
@@ -112,7 +112,6 @@
             currentMovies = movies;
             renderMovieInputs(movies);
         } catch (error) {
-            console.error("영화 로드 실패:", error);
             container.innerHTML = `<div style="color: #ef4444; font-size: 13px;">영화 목록 로드 실패</div>`;
         }
     }
@@ -122,7 +121,7 @@
         container.innerHTML = '';
 
         movies.forEach((movie, index) => {
-            const isTest = index >= movies.length - 2 && movies.length >= 3; // 마지막 2개를 테스트용으로 간주
+            const isTest = index >= 10; // 1~10번은 학습용, 11번부터는 테스트용
             const badgeText = isTest ? ` [TEST ${index + 1}]` : ` [TRAIN ${index + 1}]`;
             
             const item = document.createElement('div');
@@ -157,7 +156,7 @@
         const container = document.getElementById('movieEditContainer');
         const items = container.children;
         for (let i = 0; i < items.length; i++) {
-            const isTest = i >= items.length - 2 && items.length >= 3;
+            const isTest = i >= 10;
             const badgeText = isTest ? ` [TEST ${i + 1}]` : ` [TRAIN ${i + 1}]`;
             items[i].children[0].innerText = `${i + 1}.${badgeText}`;
             items[i].children[0].style.color = isTest ? '#2563eb' : '#475569';
@@ -172,8 +171,8 @@
             if (val) newMovies.push(val);
         });
 
-        if (newMovies.length < 3) {
-            alert("최소 3개 이상의 영화가 필요합니다 (최소 1개 테스트용 포함).");
+        if (newMovies.length < 11) {
+            alert("최소 11개 이상의 영화가 필요합니다 (1~10번 학습용, 11번 이상 테스트용).");
             return;
         }
 
@@ -218,10 +217,10 @@
 
         let html = `<h3 style="margin-top: 0; color: #1e293b;">📌 [${className}] 제출 현황 (총 ${studentDataList.length}명 참여)</h3>`;
         
-        // 테이블 렌더링 (Train과 Test 영역 색상 구분)
-        html += `<div style="overflow-x: auto; max-height: 250px; margin-bottom: 25px;"><table><thead><tr><th>반</th><th>이름</th><th>제출시간</th>`;
+        // 1. 전체 제출 현황 테이블
+        html += `<div style="overflow-x: auto; max-height: 220px; margin-bottom: 25px;"><table><thead><tr><th>반</th><th>이름</th><th>제출시간</th>`;
         currentMovies.forEach((m, idx) => {
-            const isTest = idx >= currentMovies.length - 2;
+            const isTest = idx >= 10;
             html += `<th class="${isTest ? 'test-col' : 'train-col'}">${m} ${isTest ? '(TEST)' : '(Train)'}</th>`;
         });
         html += `</tr></thead><tbody>`;
@@ -233,49 +232,89 @@
         });
         html += `</tbody></table></div>`;
 
-        // 1~10번(Train) 데이터만을 이용해 코사인 유사도 상위 5쌍 추출 후, 11~12번(Test) 블라인드 비교 영역 생성
+        // 2. 학생 간 유사도 매트릭스 (히트맵 컬러 코딩) 추가
+        html += renderSimilarityMatrix();
+
+        // 3. 훈련 데이터(1~10번) 기반 톱 5 메이트 & 테스트 영화(11번~) 블라인드 비교 영역
         html += `<div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px;">
-                    <h3 style="margin-top: 0; color: #1e293b;">🤝 훈련 데이터 기반 '톱 5 영화 메이트' &amp; 테스트 영화 검증</h3>
-                    <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">학습용 영화(앞부분) 유사도로 메이트를 선정하고, 테스트용 영화(마지막 2개)의 일치도를 비교합니다.</p>`;
+                    <h3 style="margin-top: 0; color: #1e293b;">🤝 훈련 데이터(1~10번) 기반 '톱 5 영화 메이트' &amp; 테스트 검증</h3>
+                    <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">1~10번 영화 벡터의 코사인 유사도로 메이트를 선정하고, 테스트 영화들의 일치도를 비교합니다.</p>`;
 
         const matches = calculateTrainSimilarities();
         if (matches.length === 0) {
             html += `<div style="color: #64748b; font-size: 14px;">유사도를 계산하기에 데이터가 부족합니다. (2명 이상 필요)</div>`;
         } else {
             matches.forEach((match, pairIdx) => {
-                const testStartIndex = currentMovies.length - 2;
-                const testMovie1Name = currentMovies[testStartIndex];
-                const testMovie2Name = currentMovies[testStartIndex + 1];
-
-                const score1A = match.studentARow.slice(3 + testStartIndex)[0];
-                const score1B = match.studentBRow.slice(3 + testStartIndex)[0];
-                const score2A = match.studentARow.slice(3 + testStartIndex + 1)[0];
-                const score2B = match.studentBRow.slice(3 + testStartIndex + 1)[0];
-
                 html += `<div class="match-card">
                             <div class="match-header">
                                 <span>👤 <b>${match.studentA}</b> &amp; 👤 <b>${match.studentB}</b> (학습 유사도: <span style="color: #2563eb;">${(match.similarity * 100).toFixed(1)}점</span>)</span>
                             </div>
                             <div id="blind-box-${pairIdx}" class="blind-box" onclick="revealTest(${pairIdx})">
-                                🔒 [클릭] 테스트 영화(${testMovie1Name}, ${testMovie2Name}) 평가 결과 비교하기
+                                🔒 [클릭] 테스트 영화(11번 이후) 평가 결과 비교하기
                             </div>
                             <div id="reveal-box-${pairIdx}" style="display: none;" class="revealed-box">
-                                <b>🎯 테스트 영화 비교 결과</b><br>
-                                • <b>${testMovie1Name}</b>: ${match.studentA}(${score1A}점) vs ${match.studentB}(${score1B}점) ${score1A == score1B ? '✨ 완벽 일치!' : ''}<br>
-                                • <b>${testMovie2Name}</b>: ${match.studentA}(${score2A}점) vs ${match.studentB}(${score2B}점) ${score2A == score2B ? '✨ 완벽 일치!' : ''}
-                            </div>
-                         </div>`;
+                                <b>🎯 테스트 영화 비교 결과</b><br>`;
+                
+                // 테스트 영화들(인덱스 10 이상) 비교 출력
+                for (let i = 10; i < currentMovies.length; i++) {
+                    const movieName = currentMovies[i];
+                    const scoreA = match.studentARow.slice(3)[i];
+                    const scoreB = match.studentBRow.slice(3)[i];
+                    html += `• <b>${movieName}</b>: ${match.studentA}(${scoreA}점) vs ${match.studentB}(${scoreB}점) ${scoreA == scoreB ? '✨ 일치!' : ''}<br>`;
+                }
+                html += `</div></div>`;
             });
         }
         html += `</div>`;
         container.innerHTML = html;
     }
 
-    // 앞쪽 훈련용 데이터(마지막 2개 제외)만을 가지고 코사인 유사도 계산
+    // 최대 45명 참여 시 가시성을 높인 유사도 매트릭스(히트맵) 생성 함수
+    function renderSimilarityMatrix() {
+        if (studentDataList.length < 2) return '';
+        
+        const trainCount = Math.min(10, currentMovies.length);
+        const vectors = studentDataList.map(row => ({
+            name: row[1],
+            ratings: row.slice(3, 3 + trainCount).map(Number)
+        }));
+
+        let html = `<div style="margin-bottom: 25px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px;">
+                    <h3 style="margin-top: 0; color: #1e293b;">🔥 학생 간 유사도 매트릭스 (Heatmap)</h3>
+                    <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">1~10번 학습 데이터를 기준으로 모든 학생 간 코사인 유사도를 계산했습니다. 색상이 진할수록 취향이 유사합니다.</p>
+                    <div style="overflow-x: auto; max-height: 350px;">
+                    <table class="matrix-table"><thead><tr><th class="matrix-name-th">학생</th>`;
+
+        vectors.forEach(v => {
+            html += `<th>${v.name}</th>`;
+        });
+        html += `</tr></thead><tbody>`;
+
+        vectors.forEach((v1, i) => {
+            html += `<tr><th class="matrix-name-th">${v1.name}</th>`;
+            vectors.forEach((v2, j) => {
+                if (i === j) {
+                    html += `<td style="background-color: #cbd5e1; color: #64748b;">-</td>`;
+                } else {
+                    const sim = cosineSimilarity(v1.ratings, v2.ratings);
+                    // 유사도(0~1)에 따라 파란색 계열의 투명도/진하기 조절 (진할수록 유사)
+                    const alpha = isNaN(sim) ? 0 : sim;
+                    const bgColor = `rgba(37, 99, 235, ${alpha.toFixed(2)})`;
+                    const textColor = alpha > 0.6 ? 'white' : '#333';
+                    html += `<td style="background-color: ${bgColor}; color: ${textColor};" title="${v1.name} & ${v2.name}: ${(sim * 100).toFixed(1)}%">${(sim * 100).toFixed(0)}</td>`;
+                }
+            });
+            html += `</tr>`;
+        });
+
+        html += `</tbody></table></div></div>`;
+        return html;
+    }
+
+    // 1~10번 학습용 데이터만 사용하여 유사도 계산
     function calculateTrainSimilarities() {
         if (studentDataList.length < 2) return [];
-        const trainCount = currentMovies.length - 2;
-        if (trainCount <= 0) return [];
+        const trainCount = Math.min(10, currentMovies.length);
 
         const vectors = studentDataList.map(row => ({
             name: row[1],
@@ -297,7 +336,7 @@
             }
         }
         pairs.sort((a, b) => b.similarity - a.similarity);
-        return pairs.slice(0, 5); // 상위 5쌍
+        return pairs.slice(0, 5);
     }
 
     function cosineSimilarity(vecA, vecB) {
@@ -311,7 +350,6 @@
         return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
     }
 
-    // 블라인드 테스트 영화 극적 공개 함수
     function revealTest(pairIdx) {
         document.getElementById(`blind-box-${pairIdx}`).style.display = 'none';
         document.getElementById(`reveal-box-${pairIdx}`).style.display = 'block';
