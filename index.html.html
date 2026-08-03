@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>강사용 - 코사인 유사도 영화 추천 분석</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --bg-color: #f4f7f6;
+            --success-color: #2ecc71;
+            --test-movie-bg: #fff3cd;
+        }
+        body { font-family: 'Pretendard', 'Malgun Gothic', sans-serif; line-height: 1.6; padding: 20px; background-color: var(--bg-color); color: #333; font-size: 18px; margin: 0; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+        h1 { color: var(--primary-color); font-size: 36px; text-align: center; border-bottom: 3px solid var(--secondary-color); padding-bottom: 15px; margin-bottom: 40px; }
+        h2 { color: var(--secondary-color); font-size: 26px; margin-top: 40px; border-left: 5px solid var(--secondary-color); padding-left: 15px; }
+        
+        .panel { background: #f8f9fa; padding: 25px; border-radius: 10px; margin-bottom: 30px; border: 1px solid #e9ecef; }
+        
+        .btn { background: var(--secondary-color); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: 600; transition: all 0.2s ease; margin-top: 10px; }
+        .btn:hover { background: #2980b9; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3); }
+        .btn-success { background: var(--success-color); }
+        .btn-success:hover { background: #27ae60; box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3); }
+        .btn-large { font-size: 24px; padding: 18px 36px; width: 100%; max-width: 400px; margin: 20px auto; display: block; }
+        
+        textarea { width: 100%; font-size: 18px; padding: 15px; border: 2px solid #bdc3c7; border-radius: 8px; box-sizing: border-box; font-family: inherit; resize: vertical; }
+        textarea:focus { outline: none; border-color: var(--secondary-color); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 18px; text-align: center; background: white; }
+        th, td { border: 1px solid #dee2e6; padding: 15px; }
+        th { background-color: #e9ecef; position: sticky; top: 0; z-index: 10; font-weight: 700; color: var(--primary-color); }
+        .test-movie { background-color: var(--test-movie-bg) !important; font-weight: bold; }
+        
+        .scrollable-table { max-height: 600px; overflow-y: auto; overflow-x: auto; border: 2px solid #dee2e6; border-radius: 8px; }
+        
+        /* 히트맵 스타일 */
+        .sim-high { background-color: #ff7675; color: white; font-weight: bold; }
+        .sim-mid { background-color: #fab1a0; font-weight: bold; color: #2d3436; }
+        .sim-low { background-color: #ffffff; color: #636e72; }
+        .sim-self { background-color: #dfe6e9; color: #b2bec3; }
+
+        .result-box { background: white; padding: 30px; border: 2px solid #e9ecef; border-left: 8px solid var(--secondary-color); margin-bottom: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .result-box h3 { font-size: 28px; margin-top: 0; color: var(--primary-color); }
+        
+        /* 블라인드 테스트 상자 */
+        .secret-box { 
+            background: var(--primary-color); color: white; font-weight: bold; padding: 12px 20px; border-radius: 8px; 
+            cursor: pointer; display: inline-block; min-width: 140px; font-size: 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); user-select: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .secret-box:hover { background: var(--accent-color); transform: scale(1.05); }
+        .revealed { background: #f8f9fa !important; color: var(--accent-color) !important; border: 2px solid var(--accent-color); box-shadow: none; cursor: default; transform: none !important; }
+        
+        .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 16px; font-weight: bold; background: #ffeaa7; color: #d35400; }
+        .hide { display: none !important; }
+        
+        /* 로딩 스피너 */
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--secondary-color); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 10px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>👨‍🏫 강사용: 영화 추천 유사도 분석 시스템</h1>
+    
+    <div class="panel">
+        <h2>⚙️ 1. 영화 제목 설정 <span class="status-badge">학생용 앱과 실시간 연동</span></h2>
+        <p style="color: #7f8c8d; margin-bottom: 15px;">1~10번은 훈련용(유사도 계산), 11~12번은 테스트용(결과 검증)입니다. 엔터(줄바꿈)로 구분합니다.</p>
+        <textarea id="movieListInput" rows="12" placeholder="영화 제목을 한 줄에 하나씩 12개 입력하세요..."></textarea>
+        <button class="btn" onclick="saveMovies()" id="saveMovieBtn">💾 구글 서버에 영화 목록 저장</button>
+    </div>
+
+    <div class="panel">
+        <h2>📥 2. 학생 데이터 수집 및 현황</h2>
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <div>
+                <button class="btn btn-success" onclick="fetchDataFromServer()" id="fetchDataBtn">🔄 스프레드시트에서 최신 데이터 불러오기</button>
+                <span id="teacherLoading" class="hide" style="color: var(--accent-color); font-weight: bold; margin-left: 15px;">
+                    <div class="loader"></div>데이터 연동 중...
+                </span>
+            </div>
+            <div style="font-size: 22px; font-weight: bold; color: var(--primary-color);">
+                📊 현재 수집된 인원: <span id="userCount" style="color: var(--accent-color); font-size: 32px;">0</span>명
+            </div>
+        </div>
+    </div>
+    
+    <button class="btn btn-success btn-large" onclick="calculateAndRender()">🚀 코사인 유사도 분석 시작</button>
+
+    <div id="matrixSection" class="hide">
+        <h2>🔥 3. 사용자 간 코사인 유사도 매트릭스</h2>
+        <p style="color: #7f8c8d;">* 붉은색이 진할수록 두 사용자의 영화 취향(1~10번 영화 기준)이 비슷하다는 것을 의미합니다.</p>
+        <div class="scrollable-table">
+            <table id="matrixTable">
+                <thead id="matrixHead"></thead>
+                <tbody id="matrixBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="resultSection" class="hide">
+        <h2>🎯 4. 가장 유사한 쌍 (Top 5) & 블라인드 테스트</h2>
+        <p style="color: #7f8c8d;">* 취향이 가장 비슷한 두 사람이, 평가에 사용되지 않은 '테스트 영화(11, 12번)'에도 비슷한 평점을 주었는지 확인합니다.</p>
+        <div id="topPairsBox"></div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // 💡 환경 설정
+    // ==========================================
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw18EJVgwuYcjL2MKx3E9KS2p9fuYgjuLG36VJa-4_ZjwthhyuHoo8_EsBk-eVktk48zA/exec"; 
+    
+    const defaultMovies = [
+        "아이언맨", "어벤져스", "인터스텔라", "기생충", "인셉션", 
+        "범죄도시", "명량", "신과함께", "극한직업", "암살", 
+        "부산행 (Test 1)", "아바타 (Test 2)"
+    ];
+    let movies = JSON.parse(localStorage.getItem('movies')) || defaultMovies;
+    let users = [];
+
+    // ==========================================
+    // 💡 초기화 및 API 통신
+    // ==========================================
+    window.onload = async function() {
+        document.getElementById('movieListInput').value = movies.join('\n');
+        
+        try {
+            const res = await fetch(SCRIPT_URL + '?action=getMovies');
+            const fetchedMovies = await res.json();
+            if(fetchedMovies && fetchedMovies.length === 12) {
+                movies = fetchedMovies;
+                document.getElementById('movieListInput').value = movies.join('\n');
+                localStorage.setItem('movies', JSON.stringify(movies));
+            }
+        } catch(e) {
+            console.warn("초기 영화 목록 로드 실패. 저장된 로컬 데이터를 사용합니다.", e);
+        }
+    };
+
+    async function saveMovies() {
+        const input = document.getElementById('movieListInput').value.trim().split('\n');
+        if(input.length !== 12) return alert(`영화는 정확히 12개를 입력해야 합니다. (현재 ${input.length}개)`);
+        
+        const btn = document.getElementById('saveMovieBtn');
+        btn.disabled = true;
+        btn.innerText = "⏳ 저장 중...";
+        
+        const newMovies = input.map(m => m.trim());
+        
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'saveMovies', movies: newMovies }),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            });
+            const result = await response.json();
+            if(result.result === 'success') {
+                movies = newMovies;
+                localStorage.setItem('movies', JSON.stringify(movies));
+                alert("✅ 성공: 영화 목록이 구글 서버에 저장되었습니다. 학생들 화면에 즉시 반영됩니다.");
+            } else {
+                throw new Error(result.message);
+            }
+        } catch(e) {
+            alert("❌ 서버 저장 실패: " + e);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "💾 구글 서버에 영화 목록 저장";
+        }
+    }
+
+    async function fetchDataFromServer() {
+        const loading = document.getElementById('teacherLoading');
+        const btn = document.getElementById('fetchDataBtn');
+        loading.classList.remove('hide');
+        btn.disabled = true;
+        
+        try {
+            const response = await fetch(SCRIPT_URL + '?action=getData');
+            if(!response.ok) throw new Error("네트워크 응답이 정상이 아닙니다.");
+            const data = await response.json();
+            users = data;
+            document.getElementById('userCount').innerText = users.length;
+            
+            // 시각적 피드백
+            const countEl = document.getElementById('userCount');
+            countEl.style.transform = "scale(1.5)";
+            setTimeout(() => countEl.style.transform = "scale(1)", 300);
+            
+        } catch(error) {
+            alert("❌ 데이터를 불러오는데 실패했습니다. URL을 확인해주세요.\n" + error);
+        } finally {
+            loading.classList.add('hide');
+            btn.disabled = false;
+        }
+    }
+
+    // ==========================================
+    // 💡 코사인 유사도 분석 알고리즘
+    // ==========================================
+    function cosineSimilarity(vecA, vecB) {
+        let dotProduct = 0, normA = 0, normB = 0;
+        for (let i = 0; i < 10; i++) { // 1~10번 영화만 계산에 사용
+            dotProduct += vecA[i] * vecB[i];
+            normA += vecA[i] * vecA[i];
+            normB += vecB[i] * vecB[i];
+        }
+        if (normA === 0 || normB === 0) return 0;
+        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    function calculateAndRender() {
+        if(users.length < 2) return alert("⚠️ 분석을 수행하려면 최소 2명 이상의 학생 데이터가 필요합니다.");
+        
+        const n = users.length;
+        let simMatrix = Array(n).fill().map(() => Array(n).fill(0));
+        let pairs = [];
+
+        for(let i=0; i<n; i++) {
+            for(let j=0; j<n; j++) {
+                if(i === j) {
+                    simMatrix[i][j] = 1;
+                } else {
+                    let sim = cosineSimilarity(users[i].ratings, users[j].ratings);
+                    simMatrix[i][j] = sim;
+                    // 중복 쌍 방지 (i < j 일 때만 저장)
+                    if(i < j) pairs.push({ u1: users[i], u2: users[j], similarity: sim });
+                }
+            }
+        }
+        
+        renderMatrix(simMatrix);
+        pairs.sort((a, b) => b.similarity - a.similarity);
+        renderTopPairs(pairs.slice(0, 5)); // Top 5 추출
+
+        document.getElementById('matrixSection').classList.remove('hide');
+        document.getElementById('resultSection').classList.remove('hide');
+        document.getElementById('matrixSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // ==========================================
+    // 💡 UI 렌더링 함수
+    // ==========================================
+    function renderMatrix(matrix) {
+        const thead = document.getElementById('matrixHead');
+        const tbody = document.getElementById('matrixBody');
+        
+        thead.innerHTML = '<tr><th style="min-width: 120px;">이름</th>' + users.map(u => `<th>${u.name}</th>`).join('') + '</tr>';
+        
+        let html = '';
+        for(let i=0; i<users.length; i++) {
+            html += `<tr><td style="background:#f8f9fa; position:sticky; left:0; z-index:5;"><strong>${users[i].name}</strong></td>`;
+            for(let j=0; j<users.length; j++) {
+                let val = matrix[i][j];
+                let colorClass = 'sim-low';
+                
+                if (i === j) colorClass = 'sim-self';
+                else if (val >= 0.8) colorClass = 'sim-high';
+                else if (val >= 0.5) colorClass = 'sim-mid';
+                
+                html += `<td class="${colorClass}">${val.toFixed(2)}</td>`;
+            }
+            html += '</tr>';
+        }
+        tbody.innerHTML = html;
+    }
+
+    function renderTopPairs(topPairs) {
+        const box = document.getElementById('topPairsBox');
+        let html = '';
+        
+        topPairs.forEach((pair, idx) => {
+            // 인덱스 10, 11이 테스트 영화 (11번째, 12번째)
+            let s1_test1 = pair.u1.ratings[10], s2_test1 = pair.u2.ratings[10];
+            let s1_test2 = pair.u1.ratings[11], s2_test2 = pair.u2.ratings[11];
+            
+            let diff1 = Math.abs(s1_test1 - s2_test1);
+            let diff2 = Math.abs(s1_test2 - s2_test2);
+            
+            let result1 = (s1_test1 === 0 || s2_test1 === 0) ? "비교불가 (안봄)" : `<span style='color:red'>${diff1}점 차이!</span>`;
+            let result2 = (s1_test2 === 0 || s2_test2 === 0) ? "비교불가 (안봄)" : `<span style='color:red'>${diff2}점 차이!</span>`;
+
+            let displayS1T1 = s1_test1 > 0 ? `${s1_test1}점` : '안 봄';
+            let displayS2T1 = s2_test1 > 0 ? `${s2_test1}점` : '안 봄';
+            let displayS1T2 = s1_test2 > 0 ? `${s1_test2}점` : '안 봄';
+            let displayS2T2 = s2_test2 > 0 ? `${s2_test2}점` : '안 봄';
+
+            html += `
+                <div class="result-box">
+                    <h3>
+                        🏆 ${idx + 1}위: <span style="color: var(--secondary-color);">${pair.u1.name}</span> & 
+                        <span style="color: var(--accent-color);">${pair.u2.name}</span> 
+                        <span style="font-size:20px; color:#7f8c8d; margin-left:10px;">(유사도: ${(pair.similarity * 100).toFixed(1)}%)</span>
+                    </h3>
+                    <table>
+                        <tr>
+                            <th class="test-movie" style="width: 25%">테스트 영화</th>
+                            <th style="width: 25%">${pair.u1.name} 평점</th>
+                            <th style="width: 25%">${pair.u2.name} 평점</th>
+                            <th style="width: 25%; background: var(--primary-color); color: white;">일치도 결과</th>
+                        </tr>
+                        <tr>
+                            <td class="test-movie">${movies[10]}</td>
+                            <td><div class="secret-box" onclick="reveal(this, '${displayS1T1}')">👀 클릭 공개</div></td>
+                            <td><div class="secret-box" onclick="reveal(this, '${displayS2T1}')">👀 클릭 공개</div></td>
+                            <td><div class="secret-box" onclick="reveal(this, \`${result1}\`)">👀 클릭 공개</div></td>
+                        </tr>
+                        <tr>
+                            <td class="test-movie">${movies[11]}</td>
+                            <td><div class="secret-box" onclick="reveal(this, '${displayS1T2}')">👀 클릭 공개</div></td>
+                            <td><div class="secret-box" onclick="reveal(this, '${displayS2T2}')">👀 클릭 공개</div></td>
+                            <td><div class="secret-box" onclick="reveal(this, \`${result2}\`)">👀 클릭 공개</div></td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+        });
+        box.innerHTML = html;
+    }
+
+    // 블라인드 상자 오픈 애니메이션 처리
+    function reveal(element, text) {
+        if(element.classList.contains('revealed')) return;
+        element.classList.add('revealed');
+        element.innerHTML = text;
+    }
+</script>
+</body>
+</html>
