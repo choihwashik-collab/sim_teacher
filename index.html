@@ -6,7 +6,7 @@
     <title>영화 취향 협업 필터링 실습 (교사용 대시보드)</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 950px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         h1 { text-align: center; color: #1e293b; font-size: 26px; margin-bottom: 5px; }
         p.desc { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 25px; }
         
@@ -28,26 +28,35 @@
         .btn-danger:hover { background-color: #dc2626; }
         .btn-secondary { background-color: #64748b; color: white; }
         .btn-secondary:hover { background-color: #475569; }
+        .btn-reveal { background-color: #8b5cf6; color: white; width: 100%; margin-top: 10px; }
+        .btn-reveal:hover { background-color: #7c3aed; }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
-        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+        th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: center; }
         th { background-color: #f1f5f9; color: #334155; }
+        .train-col { background-color: #f8fafc; }
+        .test-col { background-color: #eff6ff; color: #1e40af; font-weight: bold; }
         
-        .match-card { background: white; border: 1px solid #cbd5e1; padding: 12px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .match-card { background: white; border: 1px solid #cbd5e1; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .match-header { display: flex; justify-content: space-between; align-items: center; font-size: 15px; margin-bottom: 10px; }
+        .blind-box { background: #1e293b; color: #94a3b8; padding: 12px; border-radius: 6px; text-align: center; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+        .blind-box:hover { background: #334155; color: white; }
+        .revealed-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 6px; color: #166534; font-size: 14px; }
+        
         .no-data { text-align: center; color: #94a3b8; padding: 30px; font-style: italic; }
     </style>
 </head>
 <body onload="initDashboard()">
 
 <div class="container">
-    <h1>📊 교사 전용 분석 대시보드</h1>
-    <p class="desc">웹 화면에서 영화 목록을 직접 편집하고, 학급별 데이터 수집 및 코사인 유사도 분석을 관리합니다.</p>
+    <h1>📊 교사 전용 분석 대시보드 (협업 필터링 검증)</h1>
+    <p class="desc">훈련용 데이터(앞 10개)로 메이트를 찾고, 테스트용 데이터(마지막 2개)로 예측 정확도를 비교합니다.</p>
 
-    <!-- 1. 영화 목록 직접 편집 섹션 (스프레드시트 열 필요 없음!) -->
+    <!-- 1. 영화 목록 관리 섹션 -->
     <div class="section-box">
-        <div class="section-title">🎬 출제할 영화 목록 관리 (웹에서 바로 수정)</div>
+        <div class="section-title">🎬 출제할 영화 목록 관리 (앞부분: 훈련용 / 마지막 2개: 테스트용)</div>
         <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">
-            * 아래 입력된 영화들은 학생들이 설문할 때 실시간으로 반영됩니다. 수정 후 <b>[설정 저장하기]</b>를 꼭 눌러주세요.
+            * 총 영화 개수가 12개라면, <b>1~10번은 학습용(유사도 계산)</b>, <b>11~12번은 테스트용(블라인드 비교)</b>으로 자동 분리됩니다.
         </p>
         <div id="movieEditContainer" class="movie-edit-list">
             <div style="color: #94a3b8; font-size: 13px;">영화 목록을 불러오는 중...</div>
@@ -60,7 +69,7 @@
 
     <!-- 2. 학급 선택 및 제어 패널 -->
     <div class="section-box">
-        <div class="section-title">🎯 학급별 데이터 분석 및 관리</div>
+        <div class="section-title">🎯 학급별 데이터 분석 및 검증</div>
         <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 200px;">
                 <label for="targetClass">조회할 학급 선택</label>
@@ -93,7 +102,6 @@
         await loadCurrentMoviesForEdit();
     }
 
-    // 백엔드에서 영화 목록을 가져와서 input 폼으로 렌더링
     async function loadCurrentMoviesForEdit() {
         const container = document.getElementById('movieEditContainer');
         container.innerHTML = `<div style="color: #94a3b8; font-size: 13px;">영화 목록 로딩 중...</div>`;
@@ -114,10 +122,13 @@
         container.innerHTML = '';
 
         movies.forEach((movie, index) => {
+            const isTest = index >= movies.length - 2 && movies.length >= 3; // 마지막 2개를 테스트용으로 간주
+            const badgeText = isTest ? ` [TEST ${index + 1}]` : ` [TRAIN ${index + 1}]`;
+            
             const item = document.createElement('div');
             item.className = 'movie-edit-item';
             item.innerHTML = `
-                <span style="font-weight: bold; color: #475569; width: 30px; text-align: right;">${index + 1}.</span>
+                <span style="font-weight: bold; color: ${isTest ? '#2563eb' : '#475569'}; width: 90px; text-align: right;">${index + 1}.${badgeText}</span>
                 <input type="text" class="movie-name-input" value="${movie}" placeholder="영화 제목 입력" style="flex: 1;">
                 <button class="btn-danger" style="padding: 8px 12px; font-size: 13px;" onclick="removeMovieInput(this)">삭제</button>
             `;
@@ -128,10 +139,13 @@
     function addMovieInput() {
         const container = document.getElementById('movieEditContainer');
         const index = container.children.length + 1;
+        const isTest = index > 10;
+        const badgeText = isTest ? ` [TEST ${index}]` : ` [TRAIN ${index}]`;
+
         const item = document.createElement('div');
         item.className = 'movie-edit-item';
         item.innerHTML = `
-            <span style="font-weight: bold; color: #475569; width: 30px; text-align: right;">${index}.</span>
+            <span style="font-weight: bold; color: ${isTest ? '#2563eb' : '#475569'}; width: 90px; text-align: right;">${index}.${badgeText}</span>
             <input type="text" class="movie-name-input" value="" placeholder="영화 제목 입력" style="flex: 1;">
             <button class="btn-danger" style="padding: 8px 12px; font-size: 13px;" onclick="removeMovieInput(this)">삭제</button>
         `;
@@ -140,15 +154,16 @@
 
     function removeMovieInput(btn) {
         btn.parentElement.remove();
-        // 번호 재정렬
         const container = document.getElementById('movieEditContainer');
         const items = container.children;
         for (let i = 0; i < items.length; i++) {
-            items[i].children[0].innerText = `${i + 1}.`;
+            const isTest = i >= items.length - 2 && items.length >= 3;
+            const badgeText = isTest ? ` [TEST ${i + 1}]` : ` [TRAIN ${i + 1}]`;
+            items[i].children[0].innerText = `${i + 1}.${badgeText}`;
+            items[i].children[0].style.color = isTest ? '#2563eb' : '#475569';
         }
     }
 
-    // 수정된 영화 목록을 서버(설정 시트)로 전송하여 저장
     async function saveMovieSettings() {
         const inputs = document.querySelectorAll('.movie-name-input');
         const newMovies = [];
@@ -157,36 +172,22 @@
             if (val) newMovies.push(val);
         });
 
-        if (newMovies.length === 0) {
-            alert("최소 1개 이상의 영화를 입력해주세요!");
+        if (newMovies.length < 3) {
+            alert("최소 3개 이상의 영화가 필요합니다 (최소 1개 테스트용 포함).");
             return;
         }
 
-        const payload = {
-            action: 'saveMovies',
-            movies: newMovies
-        };
-
+        const payload = { action: 'saveMovies', movies: newMovies };
         try {
-            const response = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            });
+            const response = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
             const result = await response.json();
-
             if (result.result === 'success') {
-                alert("✅ 영화 설정이 성공적으로 저장되었습니다! 학생 페이지에 즉시 반영됩니다.");
+                alert("✅ 영화 설정이 저장되었습니다!");
                 await loadCurrentMoviesForEdit();
-            } else {
-                alert("❌ 저장 실패");
-            }
-        } catch (error) {
-            console.error("저장 통신 에러:", error);
-            alert("❌ 서버 통신 중 에러가 발생했습니다.");
-        }
+            } else { alert("❌ 저장 실패"); }
+        } catch (error) { alert("❌ 통신 에러 발생"); }
     }
 
-    // 학급 데이터 불러오기
     async function loadClassData() {
         const targetClass = document.getElementById('targetClass').value;
         const container = document.getElementById('dataContainer');
@@ -203,7 +204,6 @@
 
             renderDashboard(targetClass);
         } catch (error) {
-            console.error("데이터 로드 에러:", error);
             container.innerHTML = `<div class="no-data" style="color: #ef4444;">데이터를 불러오는 중 에러가 발생했습니다.</div>`;
         }
     }
@@ -218,8 +218,12 @@
 
         let html = `<h3 style="margin-top: 0; color: #1e293b;">📌 [${className}] 제출 현황 (총 ${studentDataList.length}명 참여)</h3>`;
         
-        html += `<div style="overflow-x: auto; max-height: 300px; margin-bottom: 20px;"><table><thead><tr><th>반</th><th>이름</th><th>제출시간</th>`;
-        currentMovies.forEach(m => { html += `<th>${m}</th>`; });
+        // 테이블 렌더링 (Train과 Test 영역 색상 구분)
+        html += `<div style="overflow-x: auto; max-height: 250px; margin-bottom: 25px;"><table><thead><tr><th>반</th><th>이름</th><th>제출시간</th>`;
+        currentMovies.forEach((m, idx) => {
+            const isTest = idx >= currentMovies.length - 2;
+            html += `<th class="${isTest ? 'test-col' : 'train-col'}">${m} ${isTest ? '(TEST)' : '(Train)'}</th>`;
+        });
         html += `</tr></thead><tbody>`;
 
         studentDataList.forEach(row => {
@@ -229,17 +233,37 @@
         });
         html += `</tbody></table></div>`;
 
+        // 1~10번(Train) 데이터만을 이용해 코사인 유사도 상위 5쌍 추출 후, 11~12번(Test) 블라인드 비교 영역 생성
         html += `<div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px;">
-                    <h3 style="margin-top: 0; color: #1e293b;">🤝 알고리즘 분석: 코사인 유사도 기반 '찰떡궁합 영화 메이트'</h3>`;
+                    <h3 style="margin-top: 0; color: #1e293b;">🤝 훈련 데이터 기반 '톱 5 영화 메이트' &amp; 테스트 영화 검증</h3>
+                    <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">학습용 영화(앞부분) 유사도로 메이트를 선정하고, 테스트용 영화(마지막 2개)의 일치도를 비교합니다.</p>`;
 
-        const matches = calculateCosineSimilarities();
+        const matches = calculateTrainSimilarities();
         if (matches.length === 0) {
             html += `<div style="color: #64748b; font-size: 14px;">유사도를 계산하기에 데이터가 부족합니다. (2명 이상 필요)</div>`;
         } else {
-            matches.forEach(match => {
+            matches.forEach((match, pairIdx) => {
+                const testStartIndex = currentMovies.length - 2;
+                const testMovie1Name = currentMovies[testStartIndex];
+                const testMovie2Name = currentMovies[testStartIndex + 1];
+
+                const score1A = match.studentARow.slice(3 + testStartIndex)[0];
+                const score1B = match.studentBRow.slice(3 + testStartIndex)[0];
+                const score2A = match.studentARow.slice(3 + testStartIndex + 1)[0];
+                const score2B = match.studentBRow.slice(3 + testStartIndex + 1)[0];
+
                 html += `<div class="match-card">
-                            <span>👤 <b>${match.studentA}</b> &amp; 👤 <b>${match.studentB}</b></span>
-                            <span style="color: #2563eb; font-weight: bold;">유사도 점수: ${(match.similarity * 100).toFixed(1)}점</span>
+                            <div class="match-header">
+                                <span>👤 <b>${match.studentA}</b> &amp; 👤 <b>${match.studentB}</b> (학습 유사도: <span style="color: #2563eb;">${(match.similarity * 100).toFixed(1)}점</span>)</span>
+                            </div>
+                            <div id="blind-box-${pairIdx}" class="blind-box" onclick="revealTest(${pairIdx})">
+                                🔒 [클릭] 테스트 영화(${testMovie1Name}, ${testMovie2Name}) 평가 결과 비교하기
+                            </div>
+                            <div id="reveal-box-${pairIdx}" style="display: none;" class="revealed-box">
+                                <b>🎯 테스트 영화 비교 결과</b><br>
+                                • <b>${testMovie1Name}</b>: ${match.studentA}(${score1A}점) vs ${match.studentB}(${score1B}점) ${score1A == score1B ? '✨ 완벽 일치!' : ''}<br>
+                                • <b>${testMovie2Name}</b>: ${match.studentA}(${score2A}점) vs ${match.studentB}(${score2B}점) ${score2A == score2B ? '✨ 완벽 일치!' : ''}
+                            </div>
                          </div>`;
             });
         }
@@ -247,11 +271,16 @@
         container.innerHTML = html;
     }
 
-    function calculateCosineSimilarities() {
+    // 앞쪽 훈련용 데이터(마지막 2개 제외)만을 가지고 코사인 유사도 계산
+    function calculateTrainSimilarities() {
         if (studentDataList.length < 2) return [];
+        const trainCount = currentMovies.length - 2;
+        if (trainCount <= 0) return [];
+
         const vectors = studentDataList.map(row => ({
             name: row[1],
-            ratings: row.slice(3).map(Number)
+            row: row,
+            ratings: row.slice(3, 3 + trainCount).map(Number)
         }));
 
         let pairs = [];
@@ -261,12 +290,14 @@
                 pairs.push({
                     studentA: vectors[i].name,
                     studentB: vectors[j].name,
+                    studentARow: vectors[i].row,
+                    studentBRow: vectors[j].row,
                     similarity: isNaN(sim) ? 0 : sim
                 });
             }
         }
         pairs.sort((a, b) => b.similarity - a.similarity);
-        return pairs.slice(0, 5);
+        return pairs.slice(0, 5); // 상위 5쌍
     }
 
     function cosineSimilarity(vecA, vecB) {
@@ -280,26 +311,25 @@
         return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
     }
 
+    // 블라인드 테스트 영화 극적 공개 함수
+    function revealTest(pairIdx) {
+        document.getElementById(`blind-box-${pairIdx}`).style.display = 'none';
+        document.getElementById(`reveal-box-${pairIdx}`).style.display = 'block';
+    }
+
     async function resetClassData() {
         const targetClass = document.getElementById('targetClass').value;
         if (!confirm(`⚠️ 경고: [${targetClass}]의 모든 제출 데이터를 삭제하시겠습니까?`)) return;
 
         const payload = { action: 'clearData', className: targetClass };
         try {
-            const response = await fetch(SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            });
+            const response = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
             const result = await response.json();
             if (result.result === 'success') {
                 alert(`✅ [${targetClass}] 데이터가 초기화되었습니다.`);
                 loadClassData();
-            } else {
-                alert("❌ 초기화 실패");
-            }
-        } catch (error) {
-            alert("❌ 통신 에러 발생");
-        }
+            } else { alert("❌ 초기화 실패"); }
+        } catch (error) { alert("❌ 통신 에러 발생"); }
     }
 </script>
 </body>
