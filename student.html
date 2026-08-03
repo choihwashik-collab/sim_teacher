@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영화 취향 분석 및 협업 필터링 실습 (학생용)</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 700px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1 { text-align: center; color: #2c3e50; font-size: 24px; margin-bottom: 10px; }
+        p.desc { text-align: center; color: #7f8c8d; font-size: 14px; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #34495e; }
+        input[type="text"] { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 16px; }
+        .movie-card { background: #fdfefe; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .movie-title { font-weight: 600; font-size: 15px; flex: 1; }
+        .rating-select { padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 14px; background: white; }
+        button { width: 100%; background-color: #3b82f6; color: white; border: none; padding: 14px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: background 0.2s; margin-top: 10px; }
+        button:hover { background-color: #2563eb; }
+        .loading { text-align: center; color: #64748b; font-style: italic; padding: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎬 나의 영화 취향 진단</h1>
+    <p class="desc">아래 영화들의 재미 점수를 매겨보고, 나와 가장 잘 맞는 '영화 메이트'를 찾아보세요!</p>
+
+    <div class="form-group">
+        <label for="studentName">학생 이름 / 번호</label>
+        <input type="text" id="studentName" placeholder="예: 2학년 3반 15번 홍길동" required>
+    </div>
+
+    <div class="form-group">
+        <label>영화별 선호도 평가 (1점: 별로임 ~ 5점: 인생작)</label>
+        <div id="movieListContainer" class="loading">서버에서 영화 목록을 불러오는 중입니다...</div>
+    </div>
+
+    <button onclick="submitData()">데이터 전송하기 🚀</button>
+</div>
+
+<script>
+    // 선생님이 발급해주신 최신 앱스 스크립트 웹 앱 주소
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyep2aS8T1AJiG0zZZps0e6zrmIPGxpG9vbQknO1zU_CM6WTA1ugVM9v4CMeIP5cDCgLQ/exec";
+
+    let currentMovies = [];
+
+    // 페이지가 열리면 서버에서 영화 목록(12개)을 가져옴
+    window.onload = async function() {
+        try {
+            const response = await fetch(`${SCRIPT_URL}?action=getMovies`);
+            const movies = await response.json();
+            
+            if (Array.isArray(movies) && movies.length > 0) {
+                currentMovies = movies;
+                renderMovieInputs(movies);
+            } else {
+                throw new Error("영화 목록 데이터가 비어있습니다.");
+            }
+        } catch (error) {
+            console.error("영화 목록 로드 실패:", error);
+            // 통신 실패 시 기본 백업 목록 적용
+            currentMovies = ["탈주", "시민덕희", "파일럿", "콘크리트 유토피아", "밀수", "야당", "어쩔수가없다", "하이파이브", "승부", "보스", "잠", "소방관"];
+            renderMovieInputs(currentMovies);
+        }
+    };
+
+    // 영화 입력 UI 동적 생성 함수
+    function renderMovieInputs(movies) {
+        const container = document.getElementById('movieListContainer');
+        container.innerHTML = '';
+        
+        movies.forEach((movie, index) => {
+            const card = document.createElement('div');
+            card.className = 'movie-card';
+            
+            card.innerHTML = `
+                <span class="movie-title">${index + 1}. ${movie}</span>
+                <select class="rating-select" id="rating-${index}">
+                    <option value="1">1점 (별로)</option>
+                    <option value="2">2점 (그저그런)</option>
+                    <option value="3" selected>3점 (보통)</option>
+                    <option value="4">4점 (재미있음)</option>
+                    <option value="5">5점 (최고!)</option>
+                </select>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // 학생 데이터 서버로 전송하는 함수
+    async function submitData() {
+        const nameInput = document.getElementById('studentName').value.trim();
+        if (!nameInput) {
+            alert("이름 또는 학번을 입력해주세요!");
+            document.getElementById('studentName').focus();
+            return;
+        }
+
+        // 12개 영화 점수 수집
+        const ratings = [];
+        for (let i = 0; i < currentMovies.length; i++) {
+            const score = parseInt(document.getElementById(`rating-${i}`).value);
+            ratings.push(score);
+        }
+
+        const payload = {
+            action: 'saveData',
+            name: nameInput,
+            ratings: ratings
+        };
+
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            
+            if (result.result === 'success') {
+                alert("🎉 데이터가 성공적으로 전송되었습니다! 수업에 적극적으로 참여해 주세요.");
+                document.getElementById('studentName').value = ''; // 이름 초기화
+            } else {
+                alert("❌ 전송 실패: " + (result.message || '알 수 없는 오류'));
+            }
+        } catch (error) {
+            console.error("통신 에러:", error);
+            alert("❌ 서버 통신 중 에러가 발생했습니다: " + error.toString());
+        }
+    }
+</script>
+
+</body>
+</html>
