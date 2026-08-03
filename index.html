@@ -10,21 +10,20 @@
         h1 { text-align: center; color: #1e293b; font-size: 26px; margin-bottom: 5px; }
         p.desc { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 25px; }
         
-        /* 섹션 박스 공통 스타일 */
         .section-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .section-title { font-size: 16px; font-weight: bold; color: #334155; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .section-title { font-size: 16px; font-weight: bold; color: #334155; margin-bottom: 12px; }
         
         label { display: block; font-weight: bold; margin-bottom: 6px; color: #475569; font-size: 14px; }
-        select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; background: white; }
+        select, input[type="text"] { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; background: white; box-sizing: border-box; }
         
-        /* 영화 태그 스타일 */
-        .movie-badge-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 5px; }
-        .movie-badge { background: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; border: 1px solid #bae6fd; }
-
-        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
-        button { padding: 12px 20px; font-size: 15px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
-        .btn-primary { background-color: #2563eb; color: white; flex: 1; }
+        .movie-edit-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 250px; overflow-y: auto; }
+        .movie-edit-item { display: flex; gap: 10px; align-items: center; }
+        
+        button { padding: 10px 16px; font-size: 14px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
+        .btn-primary { background-color: #2563eb; color: white; }
         .btn-primary:hover { background-color: #1d4ed8; }
+        .btn-success { background-color: #10b981; color: white; }
+        .btn-success:hover { background-color: #059669; }
         .btn-danger { background-color: #ef4444; color: white; }
         .btn-danger:hover { background-color: #dc2626; }
         .btn-secondary { background-color: #64748b; color: white; }
@@ -42,25 +41,26 @@
 
 <div class="container">
     <h1>📊 교사 전용 분석 대시보드</h1>
-    <p class="desc">현재 설정된 영화 목록을 확인하고, 학급별 학생 데이터 수집 및 코사인 유사도 분석을 관리합니다.</p>
+    <p class="desc">웹 화면에서 영화 목록을 직접 편집하고, 학급별 데이터 수집 및 코사인 유사도 분석을 관리합니다.</p>
 
-    <!-- 1. 영화 목록 확인 및 관리 섹션 (추가됨!) -->
+    <!-- 1. 영화 목록 직접 편집 섹션 (스프레드시트 열 필요 없음!) -->
     <div class="section-box">
-        <div class="section-title">
-            <span>🎬 현재 출제된 영화 목록 (설정 시트 연동)</span>
-            <button class="btn-secondary" style="padding: 6px 12px; font-size: 13px;" onclick="loadCurrentMovies()">목록 새로고침 🔄</button>
-        </div>
-        <p style="font-size: 13px; color: #64748b; margin-bottom: 10px;">
-            * 영화 목록을 변경하시려면 구글 스프레드시트의 <b>[설정]</b> 시트에서 직접 수정해 주세요. 수정 즉시 학생들에게 반영됩니다.
+        <div class="section-title">🎬 출제할 영화 목록 관리 (웹에서 바로 수정)</div>
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 12px;">
+            * 아래 입력된 영화들은 학생들이 설문할 때 실시간으로 반영됩니다. 수정 후 <b>[설정 저장하기]</b>를 꼭 눌러주세요.
         </p>
-        <div id="movieBadgeContainer" class="movie-badge-container">
-            <span style="color: #94a3b8; font-size: 13px;">영화 목록을 불러오는 중...</span>
+        <div id="movieEditContainer" class="movie-edit-list">
+            <div style="color: #94a3b8; font-size: 13px;">영화 목록을 불러오는 중...</div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 10px;">
+            <button class="btn-secondary" onclick="addMovieInput()">+ 영화 추가하기</button>
+            <button class="btn-success" onclick="saveMovieSettings()">💾 설정 저장하기</button>
         </div>
     </div>
 
     <!-- 2. 학급 선택 및 제어 패널 -->
     <div class="section-box">
-        <div class="section-title"><span>🎯 학급별 데이터 분석 및 관리</span></div>
+        <div class="section-title">🎯 학급별 데이터 분석 및 관리</div>
         <div style="display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;">
             <div style="flex: 1; min-width: 200px;">
                 <label for="targetClass">조회할 학급 선택</label>
@@ -77,47 +77,112 @@
         </div>
     </div>
 
-    <!-- 3. 결과 및 데이터 대시보드 영역 -->
+    <!-- 3. 결과 대시보드 영역 -->
     <div id="dataContainer" class="section-box" style="background: white;">
         <div class="no-data">상단에서 조회할 학급을 선택하고 [데이터 불러오기] 버튼을 눌러주세요.</div>
     </div>
 </div>
 
 <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwwQvoQxkVnsquaDvQMCngXkyAC0LxPSsqPsI0GUnXxHsw6g8Q6XSEOzb5mjmO7omwQag/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzOMEjTqsN-yxn22NZ3NNBQuUY73kQfnfJ8joaUtgPrgphXI6Io1m8ZTkn98z-TUvkaxg/exec";
     
     let currentMovies = [];
     let studentDataList = [];
 
-    // 페이지 접속 시 영화 목록 자동 로드
     async function initDashboard() {
-        await loadCurrentMovies();
+        await loadCurrentMoviesForEdit();
     }
 
-    // 영화 목록을 백엔드에서 가져와서 교사 화면에 뱃지 형태로 렌더링
-    async function loadCurrentMovies() {
-        const badgeContainer = document.getElementById('movieBadgeContainer');
-        badgeContainer.innerHTML = `<span style="color: #94a3b8; font-size: 13px;">영화 목록 동기화 중...</span>`;
+    // 백엔드에서 영화 목록을 가져와서 input 폼으로 렌더링
+    async function loadCurrentMoviesForEdit() {
+        const container = document.getElementById('movieEditContainer');
+        container.innerHTML = `<div style="color: #94a3b8; font-size: 13px;">영화 목록 로딩 중...</div>`;
 
         try {
             const response = await fetch(`${SCRIPT_URL}?action=getMovies`);
             const movies = await response.json();
-            
-            if (Array.isArray(movies) && movies.length > 0) {
-                currentMovies = movies;
-                badgeContainer.innerHTML = '';
-                movies.forEach((movie, idx) => {
-                    const badge = document.createElement('span');
-                    badge.className = 'movie-badge';
-                    badge.innerText = `${idx + 1}. ${movie}`;
-                    badgeContainer.appendChild(badge);
-                });
+            currentMovies = movies;
+            renderMovieInputs(movies);
+        } catch (error) {
+            console.error("영화 로드 실패:", error);
+            container.innerHTML = `<div style="color: #ef4444; font-size: 13px;">영화 목록 로드 실패</div>`;
+        }
+    }
+
+    function renderMovieInputs(movies) {
+        const container = document.getElementById('movieEditContainer');
+        container.innerHTML = '';
+
+        movies.forEach((movie, index) => {
+            const item = document.createElement('div');
+            item.className = 'movie-edit-item';
+            item.innerHTML = `
+                <span style="font-weight: bold; color: #475569; width: 30px; text-align: right;">${index + 1}.</span>
+                <input type="text" class="movie-name-input" value="${movie}" placeholder="영화 제목 입력" style="flex: 1;">
+                <button class="btn-danger" style="padding: 8px 12px; font-size: 13px;" onclick="removeMovieInput(this)">삭제</button>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    function addMovieInput() {
+        const container = document.getElementById('movieEditContainer');
+        const index = container.children.length + 1;
+        const item = document.createElement('div');
+        item.className = 'movie-edit-item';
+        item.innerHTML = `
+            <span style="font-weight: bold; color: #475569; width: 30px; text-align: right;">${index}.</span>
+            <input type="text" class="movie-name-input" value="" placeholder="영화 제목 입력" style="flex: 1;">
+            <button class="btn-danger" style="padding: 8px 12px; font-size: 13px;" onclick="removeMovieInput(this)">삭제</button>
+        `;
+        container.appendChild(item);
+    }
+
+    function removeMovieInput(btn) {
+        btn.parentElement.remove();
+        // 번호 재정렬
+        const container = document.getElementById('movieEditContainer');
+        const items = container.children;
+        for (let i = 0; i < items.length; i++) {
+            items[i].children[0].innerText = `${i + 1}.`;
+        }
+    }
+
+    // 수정된 영화 목록을 서버(설정 시트)로 전송하여 저장
+    async function saveMovieSettings() {
+        const inputs = document.querySelectorAll('.movie-name-input');
+        const newMovies = [];
+        inputs.forEach(input => {
+            const val = input.value.trim();
+            if (val) newMovies.push(val);
+        });
+
+        if (newMovies.length === 0) {
+            alert("최소 1개 이상의 영화를 입력해주세요!");
+            return;
+        }
+
+        const payload = {
+            action: 'saveMovies',
+            movies: newMovies
+        };
+
+        try {
+            const response = await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+
+            if (result.result === 'success') {
+                alert("✅ 영화 설정이 성공적으로 저장되었습니다! 학생 페이지에 즉시 반영됩니다.");
+                await loadCurrentMoviesForEdit();
             } else {
-                badgeContainer.innerHTML = `<span style="color: #ef4444; font-size: 13px;">영화 목록이 비어있습니다.</span>`;
+                alert("❌ 저장 실패");
             }
         } catch (error) {
-            console.error("영화 목록 로드 에러:", error);
-            badgeContainer.innerHTML = `<span style="color: #ef4444; font-size: 13px;">영화 목록 통신 실패</span>`;
+            console.error("저장 통신 에러:", error);
+            alert("❌ 서버 통신 중 에러가 발생했습니다.");
         }
     }
 
@@ -128,7 +193,6 @@
         container.innerHTML = `<div class="no-data">[${targetClass}] 데이터를 불러오는 중입니다...</div>`;
 
         try {
-            // 최신 영화 목록과 해당 반 데이터를 동시에 가져옴
             const [movieRes, dataRes] = await Promise.all([
                 fetch(`${SCRIPT_URL}?action=getMovies`),
                 fetch(`${SCRIPT_URL}?action=getData&className=${targetClass}`)
@@ -144,35 +208,29 @@
         }
     }
 
-    // 대시보드 화면 렌더링 및 코사인 유사도 계산
     function renderDashboard(className) {
         const container = document.getElementById('dataContainer');
         
         if (!studentDataList || studentDataList.length === 0) {
-            container.innerHTML = `<div class="no-data">📦 [${className}]에 제출된 데이터가 아직 없습니다. 학생들이 설문을 완료하도록 안내해 주세요.</div>`;
+            container.innerHTML = `<div class="no-data">📦 [${className}]에 제출된 데이터가 아직 없습니다.</div>`;
             return;
         }
 
         let html = `<h3 style="margin-top: 0; color: #1e293b;">📌 [${className}] 제출 현황 (총 ${studentDataList.length}명 참여)</h3>`;
         
-        // 제출된 데이터 테이블 생성
         html += `<div style="overflow-x: auto; max-height: 300px; margin-bottom: 20px;"><table><thead><tr><th>반</th><th>이름</th><th>제출시간</th>`;
         currentMovies.forEach(m => { html += `<th>${m}</th>`; });
         html += `</tr></thead><tbody>`;
 
         studentDataList.forEach(row => {
             html += `<tr>`;
-            row.forEach(cell => {
-                html += `<td>${cell}</td>`;
-            });
+            row.forEach(cell => { html += `<td>${cell}</td>`; });
             html += `</tr>`;
         });
         html += `</tbody></table></div>`;
 
-        // 코사인 유사도 기반 알고리즘 분석 영역
         html += `<div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px;">
-                    <h3 style="margin-top: 0; color: #1e293b;">🤝 알고리즘 분석: 코사인 유사도 기반 '찰떡궁합 영화 메이트'</h3>
-                    <p style="font-size: 13px; color: #64748b; margin-bottom: 15px;">학생 간 벡터 값을 비교하여 가장 유사한 취향을 가진 커플을 매칭합니다.</p>`;
+                    <h3 style="margin-top: 0; color: #1e293b;">🤝 알고리즘 분석: 코사인 유사도 기반 '찰떡궁합 영화 메이트'</h3>`;
 
         const matches = calculateCosineSimilarities();
         if (matches.length === 0) {
@@ -185,24 +243,18 @@
                          </div>`;
             });
         }
-
         html += `</div>`;
         container.innerHTML = html;
     }
 
-    // 코사인 유사도 계산 알고리즘 함수
     function calculateCosineSimilarities() {
         if (studentDataList.length < 2) return [];
-
-        const vectors = studentDataList.map(row => {
-            return {
-                name: row[1],
-                ratings: row.slice(3).map(Number)
-            };
-        });
+        const vectors = studentDataList.map(row => ({
+            name: row[1],
+            ratings: row.slice(3).map(Number)
+        }));
 
         let pairs = [];
-
         for (let i = 0; i < vectors.length; i++) {
             for (let j = i + 1; j < vectors.length; j++) {
                 const sim = cosineSimilarity(vectors[i].ratings, vectors[j].ratings);
@@ -213,15 +265,12 @@
                 });
             }
         }
-
         pairs.sort((a, b) => b.similarity - a.similarity);
         return pairs.slice(0, 5);
     }
 
     function cosineSimilarity(vecA, vecB) {
-        let dotProduct = 0;
-        let normA = 0;
-        let normB = 0;
+        let dotProduct = 0, normA = 0, normB = 0;
         for (let i = 0; i < vecA.length; i++) {
             dotProduct += vecA[i] * vecB[i];
             normA += vecA[i] * vecA[i];
@@ -231,34 +280,25 @@
         return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
     }
 
-    // 테스트 데이터 초기화 함수
     async function resetClassData() {
         const targetClass = document.getElementById('targetClass').value;
-        if (!confirm(`⚠️ 경고: [${targetClass}]의 모든 제출 데이터를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
-            return;
-        }
+        if (!confirm(`⚠️ 경고: [${targetClass}]의 모든 제출 데이터를 삭제하시겠습니까?`)) return;
 
-        const payload = {
-            action: 'clearData',
-            className: targetClass
-        };
-
+        const payload = { action: 'clearData', className: targetClass };
         try {
             const response = await fetch(SCRIPT_URL, {
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
             const result = await response.json();
-
             if (result.result === 'success') {
-                alert(`✅ [${targetClass}] 데이터가 성공적으로 초기화되었습니다.`);
+                alert(`✅ [${targetClass}] 데이터가 초기화되었습니다.`);
                 loadClassData();
             } else {
                 alert("❌ 초기화 실패");
             }
         } catch (error) {
-            console.error("초기화 통신 에러:", error);
-            alert("❌ 서버 통신 중 에러가 발생했습니다.");
+            alert("❌ 통신 에러 발생");
         }
     }
 </script>
